@@ -1,0 +1,45 @@
+CREATE TABLE users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  role TEXT DEFAULT 'student' CHECK (role IN ('ta', 'student')),
+  created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE questions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chapter INTEGER NOT NULL CHECK (chapter >= 1 AND chapter <= 12),
+  title TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  correct_answer TEXT NOT NULL,
+  explanation TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  answer TEXT NOT NULL,
+  submitted_at TIMESTAMP DEFAULT now(),
+  UNIQUE(user_id, question_id)
+);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE submissions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own row" ON users FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Authenticated users can read questions" ON questions FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Only TA can insert questions" ON questions FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ta')
+);
+CREATE POLICY "Students can read own submissions" ON submissions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "TA can read all submissions" ON submissions FOR SELECT USING (
+  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ta')
+);
+CREATE POLICY "Users can insert own submissions" ON submissions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX idx_questions_chapter ON questions(chapter);
+CREATE INDEX idx_submissions_user_id ON submissions(user_id);
+CREATE INDEX idx_submissions_question_id ON submissions(question_id);
