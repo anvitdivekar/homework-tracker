@@ -29,12 +29,38 @@ export default function Dashboard() {
     }
 
     const { data } = await supabase.from("users").select("*").eq("id", authUser.id).single();
-    if (data) setUser(data);
-    else {
-      const role = authUser.email === process.env.NEXT_PUBLIC_TA_EMAIL ? "ta" : "student";
-      await supabase.from("users").insert([{ id: authUser.id, email: authUser.email, role }]);
-      setUser({ id: authUser.id, email: authUser.email, name: null, role });
+    const isTA = authUser.email === process.env.NEXT_PUBLIC_TA_EMAIL;
+    if (data) {
+    // Make sure the configured TA always gets the TA role
+    if (isTA && data.role !== "ta") {
+      const { data: updatedUser } = await supabase
+        .from("users")
+        .update({ role: "ta" })
+        .eq("id", authUser.id)
+        .select()
+        .single();
+
+      setUser(updatedUser);
+    } else {
+      setUser(data);
     }
+  } else {
+    const role = isTA ? "ta" : "student";
+
+    const { data: newUser } = await supabase
+      .from("users")
+      .insert([
+        {
+          id: authUser.id,
+          email: authUser.email,
+          role,
+        },
+      ])
+      .select()
+      .single();
+
+    setUser(newUser);
+  }
 
     loadQuestions();
   };
