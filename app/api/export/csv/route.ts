@@ -1,0 +1,52 @@
+import { createServerClient } from "@/lib/supabase-server";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify TA role
+    const { data: userRow } = await supabase.from("users").select("role").eq("id", user.id).single();
+    if (!userRow || userRow.role !== "ta") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Fetch all submissions with student & question info
+    const { data: submissions, error } = await supabase
+      .from("submissions")
+      .select("id, user_id, question_id, answer, is_correct, score, submitted_at, users(email), questions(title, chapter, points)")
+      .order("submitted_at");
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Build CSV
+    let csv = "Student Email,Chapter,Question,Answer,Correct,Score,Max Score,Submitted At\n";
+    submissions?.forEach((sub: any) => {
+      const email = sub.users?.email || "unknown";
+      const chapter = sub.questions?.chapter || "";
+      const title = sub.questions?.title || "";
+      const maxScore = sub.questions?.points || 1;
+      const score = sub.score !== null ? sub.score : "—";
+      const isCorrect = sub.is_correct === true ? "Yes" : sub.is_correct === false ? "No" : "Pending";
+      const date = new Date(sub.submitted_at).toLocaleString();
+      const answer = (sub.answer || "").replace(/"/g, '""'); // Escape quotes
+
+      csv += `"${email}",${chapter},"${title}","${answer}",${isCorrect},${score}/${maxScore},"${date}"\n`;
+    });
+
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv",
+        "Content-Disposition": "attachment; filename=homework-export.csv",
+      },
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

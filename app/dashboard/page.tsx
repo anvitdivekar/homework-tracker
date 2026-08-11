@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Question, Submission, User } from "@/lib/types";
 
 export default function Dashboard() {
@@ -14,6 +15,8 @@ export default function Dashboard() {
   const [chapter, setChapter] = useState(1);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [studentAnswer, setStudentAnswer] = useState("");
+  const [feedback, setFeedback] = useState<{ is_correct: boolean | null; score: number | null; explanation: string | null } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -40,7 +43,7 @@ export default function Dashboard() {
   };
 
   const loadQuestions = async () => {
-    const { data } = await supabase.from("questions").select("*").order("chapter");
+    const { data } = await supabase.from("questions_public").select("*").order("chapter");
     if (data) setQuestions(data);
 
     const { data: subs } = await supabase.from("submissions").select("*");
@@ -62,17 +65,49 @@ export default function Dashboard() {
 
   const submitAnswer = async () => {
     if (!selectedQuestion || !studentAnswer) return;
-    await supabase.from("submissions").upsert([
-      { user_id: user!.id, question_id: selectedQuestion.id, answer: studentAnswer, submitted_at: new Date().toISOString() },
-    ]);
-    setStudentAnswer("");
-    setSelectedQuestion(null);
-    loadQuestions();
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question_id: selectedQuestion.id, answer: studentAnswer }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Error: ${err.error}`);
+        setSubmitting(false);
+        return;
+      }
+
+      const data = await res.json();
+      setFeedback({ is_correct: data.is_correct, score: data.score, explanation: data.explanation });
+      setStudentAnswer("");
+      loadQuestions();
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const handleExportCSV = async () => {
+    const res = await fetch("/api/export/csv");
+    if (!res.ok) {
+      alert("Failed to export");
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "homework-export.csv";
+    a.click();
   };
 
   if (!user) return <div>Loading...</div>;
@@ -81,8 +116,23 @@ export default function Dashboard() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", borderBottom: "2px solid #1e3a5f", paddingBottom: "10px" }}>
         <h1 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Homework Tracker</h1>
-        <div>
-          <span style={{ marginRight: "20px" }}>{user.email} ({user.role})</span>
+        <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+          <span style={{ color: "#666" }}>{user.email} ({user.role})</span>
+          {user.role !== "ta" && (
+            <Link href="/progress" style={{ color: "#1e3a5f", textDecoration: "none", padding: "8px 16px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+              Progress
+            </Link>
+          )}
+          {user.role === "ta" && (
+            <>
+              <Link href="/analytics" style={{ color: "#1e3a5f", textDecoration: "none", padding: "8px 16px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+                Analytics
+              </Link>
+              <button onClick={handleExportCSV} style={{ padding: "8px 16px", backgroundColor: "#d4af37", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+                Export CSV
+              </button>
+            </>
+          )}
           <button onClick={handleLogout} style={{ padding: "8px 16px", backgroundColor: "#d4af37", border: "none", cursor: "pointer", borderRadius: "4px" }}>
             Logout
           </button>
@@ -108,7 +158,6 @@ export default function Dashboard() {
               <div key={q.id} style={{ padding: "10px", border: "1px solid #ccc", marginBottom: "10px", borderRadius: "4px" }}>
                 <strong>[Ch {q.chapter}] {q.title}</strong>
                 <p>{q.prompt}</p>
-                <small>Answer: {q.correct_answer}</small>
               </div>
             ))}
           </div>
@@ -119,16 +168,26 @@ export default function Dashboard() {
           <div>
             {questions.map((q) => {
               const submitted = submissions.has(q.id);
+              const sub = submitted ? submissions.get(q.id) : null;
               return (
                 <div key={q.id} style={{ padding: "10px", border: "1px solid #ccc", marginBottom: "10px", borderRadius: "4px", backgroundColor: submitted ? "#e8f5e9" : "#fff" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <div>
                       <strong>[Ch {q.chapter}] {q.title}</strong>
                       <p>{q.prompt}</p>
+                      {q.due_at && <small style={{ color: new Date() > new Date(q.due_at) ? "#d32f2f" : "#666" }}>Due: {new Date(q.due_at).toLocaleDateString()}</small>}
+                      {q.points && <small style={{ marginLeft: "10px" }}>({q.points} pts)</small>}
                     </div>
                     <div>
-                      {submitted && <span style={{ color: "#2d5016", fontSize: "20px" }}>✓</span>}
-                      <button onClick={() => setSelectedQuestion(q)} style={{ marginLeft: "10px", padding: "5px 10px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+                      {submitted && sub && (
+                        <div style={{ textAlign: "right", marginBottom: "10px" }}>
+                          {sub.is_correct && <span style={{ color: "#2d5016" }}>✓ Correct</span>}
+                          {sub.is_correct === false && <span style={{ color: "#8b3a3a" }}>✗ Incorrect</span>}
+                          {sub.is_correct === null && <span style={{ color: "#666" }}>⏳ Pending</span>}
+                          {sub.score !== null && <div style={{ fontSize: "14px", color: "#666" }}>{sub.score}/{q.points || 1} pts</div>}
+                        </div>
+                      )}
+                      <button onClick={() => { setSelectedQuestion(q); setFeedback(null); }} style={{ marginLeft: "10px", padding: "5px 10px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px" }}>
                         {submitted ? "Edit" : "Submit"}
                       </button>
                     </div>
@@ -145,22 +204,25 @@ export default function Dashboard() {
           <div style={{ backgroundColor: "white", padding: "20px", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ fontFamily: "serif" }}>{selectedQuestion.title}</h3>
             <p>{selectedQuestion.prompt}</p>
-            <textarea value={studentAnswer} onChange={(e) => setStudentAnswer(e.target.value)} placeholder="Your answer" style={{ width: "100%", minHeight: "100px", padding: "8px", marginBottom: "10px" }} />
-            <button onClick={submitAnswer} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px" }}>
-              Submit
-            </button>
-            <button onClick={() => setSelectedQuestion(null)} style={{ padding: "10px 20px", border: "1px solid #ccc", cursor: "pointer", borderRadius: "4px" }}>
-              Close
-            </button>
-            {submissions.has(selectedQuestion.id) && (
+            {!feedback ? (
+              <>
+                <textarea value={studentAnswer} onChange={(e) => setStudentAnswer(e.target.value)} placeholder="Your answer" style={{ width: "100%", minHeight: "100px", padding: "8px", marginBottom: "10px" }} />
+                <button onClick={submitAnswer} disabled={submitting} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px", opacity: submitting ? 0.6 : 1 }}>
+                  {submitting ? "Submitting..." : "Submit"}
+                </button>
+              </>
+            ) : (
               <div style={{ marginTop: "20px", padding: "10px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
-                <strong>Correct Answer:</strong> {selectedQuestion.correct_answer}
-                <p style={{ color: studentAnswer === selectedQuestion.correct_answer ? "#2d5016" : "#8b3a3a" }}>
-                  {studentAnswer === selectedQuestion.correct_answer ? "✓ Correct" : "✗ Incorrect"}
-                </p>
-                {selectedQuestion.explanation && <p><strong>Explanation:</strong> {selectedQuestion.explanation}</p>}
+                {feedback.is_correct === true && <p style={{ color: "#2d5016" }}>✓ Correct!</p>}
+                {feedback.is_correct === false && <p style={{ color: "#8b3a3a" }}>✗ Incorrect</p>}
+                {feedback.is_correct === null && <p style={{ color: "#666" }}>Submitted for manual grading</p>}
+                {feedback.score !== null && <p><strong>Score:</strong> {feedback.score}/{selectedQuestion.points || 1} pts</p>}
+                {feedback.explanation && <p><strong>Explanation:</strong> {feedback.explanation}</p>}
               </div>
             )}
+            <button onClick={() => setSelectedQuestion(null)} style={{ padding: "10px 20px", border: "1px solid #ccc", cursor: "pointer", borderRadius: "4px", marginTop: "20px" }}>
+              Close
+            </button>
           </div>
         </div>
       )}
