@@ -12,11 +12,59 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "50px auto", textAlign: "center", border: "2px solid #1e3a5f", padding: "20px", borderRadius: "8px", backgroundColor: "white" }}>
-      <h1 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Homework Tracker</h1>
-      <button onClick={handleLogin} style={{ width: "100%", padding: "10px", fontSize: "16px", backgroundColor: "#1e3a5f", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-        Sign in with Google
-      </button>
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent 35px, rgba(26, 46, 74, 0.03) 35px, rgba(26, 46, 74, 0.03) 70px)",
+      padding: "20px",
+    }}>
+      <div className="card" style={{ maxWidth: "480px", width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{
+            fontSize: "48px",
+            fontFamily: "'Playfair Display', serif",
+            fontWeight: "700",
+            color: "var(--navy)",
+            marginBottom: "4px",
+          }}>
+            <span style={{ color: "var(--navy)" }}>H</span><span style={{ color: "var(--gold)" }}>W</span>
+          </div>
+          <h1 style={{
+            fontSize: "32px",
+            marginTop: "20px",
+            marginBottom: "8px",
+            color: "var(--navy)",
+          }}>Accounting Homework</h1>
+          <p style={{
+            color: "var(--text-muted)",
+            fontSize: "14px",
+            margin: "0",
+          }}>Sign in to access your assignments</p>
+        </div>
+
+        <button
+          onClick={handleLogin}
+          className="btn-primary"
+          style={{
+            width: "100%",
+            marginBottom: "16px",
+          }}
+        >
+          Sign in with Google
+        </button>
+
+        <p style={{
+          fontSize: "12px",
+          color: "var(--text-muted)",
+          textAlign: "center",
+          margin: "0",
+        }}>
+          Instructor access only. Use your school email to sign in.
+        </p>
+      </div>
     </div>
   );
 }

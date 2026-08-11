@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
+  const [explanation, setExplanation] = useState("");
   const [chapter, setChapter] = useState(1);
   const [type, setType] = useState("text");
   const [options, setOptions] = useState("");
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [feedback, setFeedback] = useState<{ is_correct: boolean | null; score: number | null; explanation: string | null } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [filterChapter, setFilterChapter] = useState<number | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -83,11 +85,12 @@ export default function Dashboard() {
     await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapter, title, prompt, correct_answer: answer, type, options: parsed_options, difficulty }),
+      body: JSON.stringify({ chapter, title, prompt, correct_answer: answer, explanation, type, options: parsed_options, difficulty }),
     });
     setTitle("");
     setPrompt("");
     setAnswer("");
+    setExplanation("");
     setType("text");
     setOptions("");
     setDifficulty("medium");
@@ -148,159 +151,307 @@ export default function Dashboard() {
     a.click();
   };
 
-  if (!user) return <div>Loading...</div>;
+  const filteredQuestions = filterChapter ? questions.filter(q => q.chapter === filterChapter) : questions;
+  const chapters = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  if (!user) return <div style={{ padding: "40px", textAlign: "center" }}>Loading...</div>;
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", borderBottom: "2px solid #1e3a5f", paddingBottom: "10px" }}>
-        <h1 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Homework Tracker</h1>
-        <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-          <span style={{ color: "#666" }}>{user.email} ({user.role})</span>
+      {/* Page Header */}
+      <div className="page-header">
+        <h1>
+          <span className="logo-mark">HW</span>
+          Homework Tracker
+        </h1>
+        <div className="page-header-nav">
+          <span style={{ fontSize: "14px" }}>{user.email}</span>
           {user.role !== "ta" && (
-            <Link href="/progress" style={{ color: "#1e3a5f", textDecoration: "none", padding: "8px 16px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+            <Link href="/progress" className="btn btn-ghost-navy" style={{ padding: "8px 16px", fontSize: "14px" }}>
               Progress
             </Link>
           )}
           {user.role === "ta" && (
             <>
-              <Link href="/analytics" style={{ color: "#1e3a5f", textDecoration: "none", padding: "8px 16px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+              <Link href="/analytics" className="btn btn-ghost-navy" style={{ padding: "8px 16px", fontSize: "14px" }}>
                 Analytics
               </Link>
-              <button onClick={handleExportCSV} style={{ padding: "8px 16px", backgroundColor: "#d4af37", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+              <button onClick={handleExportCSV} className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "14px" }}>
                 Export CSV
               </button>
             </>
           )}
-          <button onClick={handleLogout} style={{ padding: "8px 16px", backgroundColor: "#d4af37", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+          <button onClick={handleLogout} className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: "14px" }}>
             Logout
           </button>
         </div>
       </div>
 
-      {user.role === "ta" ? (
-        <div>
-          <h2 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Create Question</h2>
-          <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }} />
-          <textarea placeholder="Prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px", minHeight: "100px" }} />
-          <select value={type} onChange={(e) => setType(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
-            <option value="text">Text Answer</option>
-            <option value="multiple_choice">Multiple Choice</option>
-            <option value="fill_blank">Fill in the Blank</option>
-            <option value="image">Image Upload</option>
-          </select>
-          {type === "multiple_choice" && (
-            <textarea placeholder="Options (one per line)" value={options} onChange={(e) => setOptions(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px", minHeight: "80px" }} />
-          )}
-          <input placeholder="Correct Answer" value={answer} onChange={(e) => setAnswer(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }} />
-          <select value={chapter} onChange={(e) => setChapter(parseInt(e.target.value))} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
-            {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Chapter {i + 1}</option>)}
-          </select>
-          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-          <button onClick={createQuestion} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px" }}>
-            Create
-          </button>
+      <div className="container">
+        {user.role === "ta" ? (
+          // TA View
+          <div>
+            <div style={{ marginBottom: "40px" }}>
+              <h2>Create Question</h2>
+              <div className="card" style={{ padding: "24px" }}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Journal Entry Practice"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Chapter</label>
+                    <select value={chapter} onChange={(e) => setChapter(parseInt(e.target.value))}>
+                      {chapters.map(ch => <option key={ch} value={ch}>Chapter {ch}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Difficulty</label>
+                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+                </div>
 
-          <h2 style={{ fontFamily: "serif", color: "#1e3a5f", marginTop: "30px" }}>Questions</h2>
-          <div>
-            {questions.map((q) => (
-              <div key={q.id} style={{ padding: "10px", border: "1px solid #ccc", marginBottom: "10px", borderRadius: "4px" }}>
-                <strong>[Ch {q.chapter}] {q.title}</strong>
-                <p>{q.prompt}</p>
+                <div className="form-group">
+                  <label>Prompt</label>
+                  <textarea
+                    placeholder="What do you want students to answer?"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Correct Answer</label>
+                  <textarea
+                    placeholder="Debit Cash 1000, Credit Revenue 1000"
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Explanation (Optional)</label>
+                  <textarea
+                    placeholder="Why is this the correct answer?"
+                    value={explanation}
+                    onChange={(e) => setExplanation(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Question Type</label>
+                    <select value={type} onChange={(e) => setType(e.target.value)}>
+                      <option value="text">Text Answer</option>
+                      <option value="multiple_choice">Multiple Choice</option>
+                      <option value="fill_blank">Fill in the Blank</option>
+                    </select>
+                  </div>
+                </div>
+
+                {type === "multiple_choice" && (
+                  <div className="form-group">
+                    <label>Options (one per line)</label>
+                    <textarea
+                      placeholder="Option A&#10;Option B&#10;Option C"
+                      value={options}
+                      onChange={(e) => setOptions(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <button onClick={createQuestion} className="btn btn-primary" style={{ marginTop: "16px" }}>
+                  Create Question
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div>
-          <h2 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Homework</h2>
-          <div>
-            {questions.map((q) => {
-              const submitted = submissions.has(q.id);
-              const sub = submitted ? submissions.get(q.id) : null;
-              return (
-                <div key={q.id} style={{ padding: "10px", border: "1px solid #ccc", marginBottom: "10px", borderRadius: "4px", backgroundColor: submitted ? "#e8f5e9" : "#fff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <div>
-                      <strong>[Ch {q.chapter}] {q.title}</strong>
-                      {q.difficulty && <span style={{ marginLeft: "10px", fontSize: "12px", padding: "2px 6px", borderRadius: "3px", backgroundColor: q.difficulty === "easy" ? "#c8e6c9" : q.difficulty === "hard" ? "#ffcdd2" : "#fff9c4" }}>{q.difficulty}</span>}
-                      <p>{q.prompt}</p>
-                      {q.due_at && <small style={{ color: new Date() > new Date(q.due_at) ? "#d32f2f" : "#666" }}>Due: {new Date(q.due_at).toLocaleDateString()}</small>}
-                      {q.points && <small style={{ marginLeft: "10px" }}>({q.points} pts)</small>}
-                    </div>
-                    <div>
-                      {submitted && sub && (
-                        <div style={{ textAlign: "right", marginBottom: "10px" }}>
-                          {sub.is_correct && <span style={{ color: "#2d5016" }}>✓ Correct</span>}
-                          {sub.is_correct === false && <span style={{ color: "#8b3a3a" }}>✗ Incorrect</span>}
-                          {sub.is_correct === null && <span style={{ color: "#666" }}>⏳ Pending</span>}
-                          {sub.score !== null && <div style={{ fontSize: "14px", color: "#666" }}>{sub.score}/{q.points || 1} pts</div>}
+            </div>
+
+            {/* TA Questions List */}
+            <div>
+              <h2>All Questions ({questions.length})</h2>
+              <div style={{ display: "grid", gap: "16px" }}>
+                {questions.map((q) => (
+                  <div key={q.id} className="question-card" style={{ borderLeftColor: "var(--navy)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="question-title">{q.title}</div>
+                        <p style={{ margin: "8px 0", color: "var(--text)", fontSize: "14px" }}>{q.prompt}</p>
+                        <div className="question-meta">
+                          <span className="badge badge-chapter">Ch {q.chapter}</span>
+                          <span className={`badge badge-difficulty-${q.difficulty || 'medium'}`}>{(q.difficulty || 'medium').toUpperCase()}</span>
                         </div>
-                      )}
-                      <button onClick={() => { setSelectedQuestion(q); setFeedback(null); }} style={{ marginLeft: "10px", padding: "5px 10px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px" }}>
-                        {submitted ? "Edit" : "Submit"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Student View
+          <div>
+            <h2 style={{ marginBottom: "20px" }}>Homework</h2>
+
+            {/* Chapter Filter */}
+            <div className="filter-tabs">
+              <button
+                className={`tab ${filterChapter === null ? 'active' : ''}`}
+                onClick={() => setFilterChapter(null)}
+              >
+                All Chapters
+              </button>
+              {chapters.map(ch => (
+                <button
+                  key={ch}
+                  className={`tab ${filterChapter === ch ? 'active' : ''}`}
+                  onClick={() => setFilterChapter(ch)}
+                >
+                  Ch {ch}
+                </button>
+              ))}
+            </div>
+
+            {/* Questions Grid */}
+            <div style={{ display: "grid", gap: "16px", marginBottom: "40px" }}>
+              {filteredQuestions.map((q) => {
+                const submitted = submissions.has(q.id);
+                const sub = submitted ? submissions.get(q.id) : null;
+                return (
+                  <div
+                    key={q.id}
+                    className={`question-card ${submitted ? 'submitted' : ''}`}
+                    onClick={() => { setSelectedQuestion(q); setFeedback(null); }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="question-title">{q.title}</div>
+                        <p style={{ margin: "8px 0 12px 0", color: "var(--text)", fontSize: "14px" }}>{q.prompt}</p>
+                        <div className="question-meta">
+                          <span className="badge badge-chapter">Ch {q.chapter}</span>
+                          <span className={`badge badge-difficulty-${q.difficulty || 'medium'}`}>{(q.difficulty || 'medium').toUpperCase()}</span>
+                          {submitted && <span className="badge badge-submitted">✓ Submitted</span>}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" style={{ marginLeft: "16px", minWidth: "100px", fontSize: "13px" }}>
+                        {submitted ? "Edit" : "Answer"}
                       </button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
+      {/* Answer Modal */}
       {selectedQuestion && !user.role.startsWith("ta") && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div style={{ backgroundColor: "white", padding: "20px", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
-              <h3 style={{ fontFamily: "serif", margin: "0" }}>{selectedQuestion.title}</h3>
+        <div className="modal-overlay" onClick={() => setSelectedQuestion(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2 style={{ marginBottom: "4px" }}>{selectedQuestion.title}</h2>
+                <p style={{ margin: "0", color: "var(--text-muted)", fontSize: "14px" }}>Chapter {selectedQuestion.chapter}</p>
+              </div>
               {selectedQuestion.time_limit_sec && timeRemaining !== null && (
-                <div style={{ color: timeRemaining < 10 ? "#d32f2f" : "#666", fontSize: "14px", fontWeight: "bold" }}>
+                <div style={{ color: timeRemaining < 10 ? "var(--red)" : "var(--text-muted)", fontSize: "14px", fontWeight: "600" }}>
                   ⏱ {timeRemaining}s
                 </div>
               )}
             </div>
-            <p>{selectedQuestion.prompt}</p>
-            {selectedQuestion.max_attempts && submissions.has(selectedQuestion.id) && (
-              <p style={{ fontSize: "12px", color: "#666", marginBottom: "10px" }}>
-                Attempts: {submissions.get(selectedQuestion.id)?.attempt_count || 1} / {selectedQuestion.max_attempts}
-              </p>
-            )}
-            {!feedback ? (
-              <>
-                {selectedQuestion.type === "text" || selectedQuestion.type === "fill_blank" ? (
-                  <textarea value={studentAnswer} onChange={(e) => setStudentAnswer(e.target.value)} placeholder="Your answer" style={{ width: "100%", minHeight: "100px", padding: "8px", marginBottom: "10px" }} />
-                ) : selectedQuestion.type === "multiple_choice" && selectedQuestion.options ? (
-                  <div style={{ marginBottom: "10px" }}>
-                    {(selectedQuestion.options as any[]).map((opt, idx) => (
-                      <label key={idx} style={{ display: "block", marginBottom: "8px" }}>
-                        <input type="radio" name="mc" value={opt} checked={studentAnswer === opt} onChange={(e) => setStudentAnswer(e.target.value)} style={{ marginRight: "8px" }} />
-                        {opt}
-                      </label>
-                    ))}
+
+            <div className="modal-content">
+              <p style={{ color: "var(--text)", lineHeight: "1.6" }}>{selectedQuestion.prompt}</p>
+
+              {selectedQuestion.max_attempts && submissions.has(selectedQuestion.id) && (
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "16px" }}>
+                  Attempt {submissions.get(selectedQuestion.id)?.attempt_count || 1} of {selectedQuestion.max_attempts}
+                </p>
+              )}
+
+              {!feedback ? (
+                <>
+                  {selectedQuestion.type === "text" || selectedQuestion.type === "fill_blank" ? (
+                    <textarea
+                      value={studentAnswer}
+                      onChange={(e) => setStudentAnswer(e.target.value)}
+                      placeholder="Your answer..."
+                      style={{ marginBottom: "16px" }}
+                    />
+                  ) : selectedQuestion.type === "multiple_choice" && selectedQuestion.options ? (
+                    <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {(selectedQuestion.options as any[]).map((opt, idx) => (
+                        <label key={idx} style={{ display: "flex", alignItems: "center", padding: "10px", border: "1px solid var(--border)", borderRadius: "8px", cursor: "pointer", backgroundColor: studentAnswer === opt ? "var(--green-light)" : "transparent", transition: "all 150ms ease" }}>
+                          <input
+                            type="radio"
+                            name="mc"
+                            value={opt}
+                            checked={studentAnswer === opt}
+                            onChange={(e) => setStudentAnswer(e.target.value)}
+                            style={{ marginRight: "12px" }}
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <button
+                    onClick={submitAnswer}
+                    disabled={submitting || !studentAnswer}
+                    className="btn btn-primary"
+                    style={{ width: "100%" }}
+                  >
+                    {submitting ? "Submitting..." : "Submit Answer"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="answer-block">
+                    <h3>Correct Answer</h3>
+                    <div className="answer-text">{selectedQuestion.correct_answer}</div>
                   </div>
-                ) : selectedQuestion.type === "image" ? (
-                  <input type="file" accept="image/*" onChange={(e) => setStudentAnswer((e.target.files?.[0]?.name) ?? "")} style={{ display: "block", marginBottom: "10px" }} />
-                ) : null}
-                <button onClick={submitAnswer} disabled={submitting || !studentAnswer} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px", opacity: submitting || !studentAnswer ? 0.6 : 1 }}>
-                  {submitting ? "Submitting..." : "Submit"}
-                </button>
-              </>
-            ) : (
-              <div style={{ marginTop: "20px", padding: "10px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
-                {feedback.is_correct === true && <p style={{ color: "#2d5016" }}>✓ Correct!</p>}
-                {feedback.is_correct === false && <p style={{ color: "#8b3a3a" }}>✗ Incorrect</p>}
-                {feedback.is_correct === null && <p style={{ color: "#666" }}>Submitted for manual grading</p>}
-                {feedback.score !== null && <p><strong>Score:</strong> {feedback.score}/{selectedQuestion.points || 1} pts</p>}
-                {feedback.explanation && <p><strong>Explanation:</strong> {feedback.explanation}</p>}
-              </div>
-            )}
-            <button onClick={() => setSelectedQuestion(null)} style={{ padding: "10px 20px", border: "1px solid #ccc", cursor: "pointer", borderRadius: "4px", marginTop: "20px" }}>
-              Close
-            </button>
+
+                  {(feedback.explanation || selectedQuestion.explanation) && (
+                    <div className="explanation-block">
+                      <h3>Explanation</h3>
+                      <p className="explanation-text">{feedback.explanation || selectedQuestion.explanation}</p>
+                    </div>
+                  )}
+
+                  {feedback.is_correct !== null && (
+                    <div style={{
+                      padding: "12px 16px",
+                      borderRadius: "8px",
+                      backgroundColor: feedback.is_correct ? "var(--green-light)" : "var(--red-light)",
+                      borderLeft: `4px solid ${feedback.is_correct ? "var(--green)" : "var(--red)"}`,
+                      marginBottom: "16px"
+                    }}>
+                      <p style={{ margin: "0", color: feedback.is_correct ? "var(--green)" : "var(--red)", fontWeight: "600" }}>
+                        {feedback.is_correct ? "✓ Correct!" : "✗ Incorrect"}
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setSelectedQuestion(null)}
+                    className="btn btn-ghost"
+                    style={{ width: "100%" }}
+                  >
+                    Close
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -41,14 +41,12 @@ export default function Analytics() {
       return;
     }
 
-    // Verify TA
     const { data: userRow } = await supabase.from("users").select("role").eq("id", user.id).single();
     if (!userRow || userRow.role !== "ta") {
       router.push("/dashboard");
       return;
     }
 
-    // Get questions with stats
     const { data: questions } = await supabase.from("questions_public").select("*");
     const { data: allSubs } = await supabase.from("submissions").select("*");
 
@@ -70,7 +68,6 @@ export default function Analytics() {
       });
       setQuestionStats(qStats);
 
-      // Get student stats
       const { data: students } = await supabase.from("users").select("*").eq("role", "student");
       if (students) {
         const sStats: StudentStats[] = students.map(st => {
@@ -95,68 +92,155 @@ export default function Analytics() {
     setLoading(false);
   };
 
-  if (loading) return <div style={{ padding: "20px" }}>Loading...</div>;
+  if (loading) return <div className="container" style={{ textAlign: "center", paddingTop: "40px" }}>Loading...</div>;
+
+  const totalSubmissions = questionStats.reduce((sum, q) => sum + q.submission_count, 0);
+  const totalCorrect = questionStats.reduce((sum, q) => sum + q.correct_count, 0);
+  const avgClassScore = totalSubmissions > 0 ? Math.round((totalCorrect / totalSubmissions) * 100) : 0;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "20px" }}>
-        <Link href="/dashboard" style={{ color: "#1e3a5f", textDecoration: "none" }}>← Back to Dashboard</Link>
+    <div>
+      <div className="page-header">
+        <h1>
+          <span className="logo-mark">HW</span>
+          Analytics
+        </h1>
+        <Link href="/dashboard" className="btn btn-ghost-navy" style={{ padding: "8px 16px", fontSize: "14px" }}>
+          ← Back to Dashboard
+        </Link>
       </div>
 
-      <h1 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Analytics</h1>
+      <div className="container">
+        {/* Summary Stats */}
+        <div className="stats-grid" style={{ marginBottom: "40px" }}>
+          <div className="stat-card">
+            <div className="stat-number">{studentStats.length}</div>
+            <div className="stat-label">Active Students</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              currently enrolled
+            </p>
+          </div>
 
-      <div style={{ marginBottom: "40px" }}>
-        <h2 style={{ color: "#1e3a5f", marginBottom: "15px" }}>Question Performance</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f5f5f5", borderBottom: "2px solid #ccc" }}>
-              <th style={{ padding: "10px", textAlign: "left" }}>Question</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Ch</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Pts</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Submissions</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Correct</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Avg Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {questionStats.map(q => (
-              <tr key={q.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "10px" }}>{q.title}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{q.chapter}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{q.points}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{q.submission_count}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{q.correct_count}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{q.avg_score}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <div className="stat-card">
+            <div className="stat-number">{questionStats.length}</div>
+            <div className="stat-label">Questions Created</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              across all chapters
+            </p>
+          </div>
 
-      <div>
-        <h2 style={{ color: "#1e3a5f", marginBottom: "15px" }}>Student Performance</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f5f5f5", borderBottom: "2px solid #ccc" }}>
-              <th style={{ padding: "10px", textAlign: "left" }}>Email</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Submissions</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Correct</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Total Score</th>
-              <th style={{ padding: "10px", textAlign: "center" }}>Chapters Done</th>
-            </tr>
-          </thead>
-          <tbody>
-            {studentStats.map(s => (
-              <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "10px" }}>{s.email}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{s.submission_count}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{s.correct_count}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{s.total_score}</td>
-                <td style={{ padding: "10px", textAlign: "center" }}>{s.chapters_completed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <div className="stat-card">
+            <div className="stat-number">{totalSubmissions}</div>
+            <div className="stat-label">Total Submissions</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              {totalCorrect} correct ({avgClassScore}%)
+            </p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">{avgClassScore}%</div>
+            <div className="stat-label">Class Average</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              across all submissions
+            </p>
+          </div>
+        </div>
+
+        {/* Question Performance */}
+        <div style={{ marginBottom: "48px" }}>
+          <h2 style={{ marginBottom: "20px" }}>Question Performance</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Chapter</th>
+                  <th>Pts</th>
+                  <th>Submissions</th>
+                  <th>Correct</th>
+                  <th>Success Rate</th>
+                  <th>Avg Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {questionStats.map(q => {
+                  const successRate = q.submission_count > 0 ? Math.round((q.correct_count / q.submission_count) * 100) : 0;
+                  return (
+                    <tr key={q.id}>
+                      <td><strong>{q.title}</strong></td>
+                      <td>{q.chapter}</td>
+                      <td>{q.points}</td>
+                      <td>{q.submission_count}</td>
+                      <td style={{ color: q.correct_count > 0 ? "var(--green)" : "var(--text-muted)" }}>{q.correct_count}</td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "60px", height: "4px", backgroundColor: "var(--border)", borderRadius: "2px" }}>
+                            <div style={{
+                              width: `${successRate}%`,
+                              height: "100%",
+                              backgroundColor: successRate >= 70 ? "var(--green)" : successRate >= 50 ? "#ffc107" : "var(--red)",
+                              borderRadius: "2px",
+                              transition: "width 200ms ease"
+                            }} />
+                          </div>
+                          <span style={{ fontSize: "12px", minWidth: "30px" }}>{successRate}%</span>
+                        </div>
+                      </td>
+                      <td><strong>{q.avg_score}</strong></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Student Performance */}
+        <div>
+          <h2 style={{ marginBottom: "20px" }}>Student Performance</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Student Email</th>
+                  <th>Submissions</th>
+                  <th>Correct</th>
+                  <th>Success Rate</th>
+                  <th>Total Score</th>
+                  <th>Chapters Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentStats.map(s => {
+                  const successRate = s.submission_count > 0 ? Math.round((s.correct_count / s.submission_count) * 100) : 0;
+                  return (
+                    <tr key={s.id}>
+                      <td><strong>{s.email}</strong></td>
+                      <td>{s.submission_count}</td>
+                      <td style={{ color: s.correct_count > 0 ? "var(--green)" : "var(--text-muted)" }}>{s.correct_count}</td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "60px", height: "4px", backgroundColor: "var(--border)", borderRadius: "2px" }}>
+                            <div style={{
+                              width: `${successRate}%`,
+                              height: "100%",
+                              backgroundColor: successRate >= 70 ? "var(--green)" : successRate >= 50 ? "#ffc107" : "var(--red)",
+                              borderRadius: "2px",
+                              transition: "width 200ms ease"
+                            }} />
+                          </div>
+                          <span style={{ fontSize: "12px", minWidth: "30px" }}>{successRate}%</span>
+                        </div>
+                      </td>
+                      <td><strong>{s.total_score}</strong></td>
+                      <td>{s.chapters_completed} / 12</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -36,14 +36,12 @@ export default function Progress() {
       return;
     }
 
-    // Get questions
     const { data: questions } = await supabase.from("questions_public").select("*");
     if (!questions) {
       setLoading(false);
       return;
     }
 
-    // Get user submissions
     const { data: submissions } = await supabase.from("submissions").select("*").eq("user_id", user.id);
     if (!submissions) {
       setLoading(false);
@@ -95,55 +93,95 @@ export default function Progress() {
     setLoading(false);
   };
 
-  if (loading) return <div style={{ padding: "20px" }}>Loading...</div>;
-  if (!progress) return <div style={{ padding: "20px" }}>No data</div>;
+  if (loading) return <div className="container" style={{ textAlign: "center", paddingTop: "40px" }}>Loading...</div>;
+  if (!progress) return <div className="container" style={{ textAlign: "center", paddingTop: "40px" }}>No data</div>;
 
   const completionPct = Math.round((progress.submitted_count / progress.total_questions) * 100);
   const scorePct = progress.total_possible > 0 ? Math.round((progress.total_score / progress.total_possible) * 100) : 0;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "20px" }}>
-        <Link href="/dashboard" style={{ color: "#1e3a5f", textDecoration: "none" }}>← Back to Dashboard</Link>
+    <div>
+      <div className="page-header">
+        <h1>
+          <span className="logo-mark">HW</span>
+          Progress
+        </h1>
+        <Link href="/dashboard" className="btn btn-ghost-navy" style={{ padding: "8px 16px", fontSize: "14px" }}>
+          ← Back to Dashboard
+        </Link>
       </div>
 
-      <h1 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Progress</h1>
+      <div className="container">
+        {/* Summary Stats */}
+        <div className="stats-grid" style={{ marginBottom: "40px" }}>
+          <div className="stat-card">
+            <div className="stat-number">{completionPct}%</div>
+            <div className="stat-label">Completion Rate</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              {progress.submitted_count} of {progress.total_questions} submitted
+            </p>
+          </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "30px" }}>
-        <div style={{ padding: "15px", border: "1px solid #ccc", borderRadius: "4px" }}>
-          <h3 style={{ margin: "0 0 10px 0", color: "#1e3a5f" }}>Completion</h3>
-          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#2d5016" }}>{completionPct}%</div>
-          <div style={{ fontSize: "14px", color: "#666" }}>{progress.submitted_count} / {progress.total_questions} submitted</div>
+          <div className="stat-card">
+            <div className="stat-number">{scorePct}%</div>
+            <div className="stat-label">Overall Score</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              {progress.total_score} of {progress.total_possible} points
+            </p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">{progress.correct_count}</div>
+            <div className="stat-label">Correct Answers</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              out of {progress.submitted_count} submitted
+            </p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-number">{progress.total_questions}</div>
+            <div className="stat-label">Total Questions</div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "8px 0 0 0" }}>
+              across 12 chapters
+            </p>
+          </div>
         </div>
 
-        <div style={{ padding: "15px", border: "1px solid #ccc", borderRadius: "4px" }}>
-          <h3 style={{ margin: "0 0 10px 0", color: "#1e3a5f" }}>Score</h3>
-          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#2d5016" }}>{scorePct}%</div>
-          <div style={{ fontSize: "14px", color: "#666" }}>{progress.total_score} / {progress.total_possible} points</div>
+        {/* Chapter Breakdown */}
+        <h2 style={{ marginBottom: "24px" }}>Chapter Breakdown</h2>
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Chapter</th>
+                <th>Progress</th>
+                <th>Submitted</th>
+                <th>Correct</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {progress.by_chapter.map(ch => {
+                const chProgress = Math.round((ch.submitted / (progress.total_questions / 12)) * 100);
+                return (
+                  <tr key={ch.chapter}>
+                    <td><strong>Chapter {ch.chapter}</strong></td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <progress value={ch.submitted} max={progress.total_questions / 12} style={{ width: "80px" }} />
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{chProgress}%</span>
+                      </div>
+                    </td>
+                    <td>{ch.submitted} / {Math.ceil(progress.total_questions / 12)}</td>
+                    <td style={{ color: ch.correct > 0 ? "var(--green)" : "var(--text-muted)" }}>{ch.correct}</td>
+                    <td><strong>{ch.score} / {ch.possible}</strong></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <h2 style={{ color: "#1e3a5f", marginBottom: "15px" }}>By Chapter</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ backgroundColor: "#f5f5f5", borderBottom: "2px solid #ccc" }}>
-            <th style={{ padding: "10px", textAlign: "left" }}>Chapter</th>
-            <th style={{ padding: "10px", textAlign: "center" }}>Submitted</th>
-            <th style={{ padding: "10px", textAlign: "center" }}>Correct</th>
-            <th style={{ padding: "10px", textAlign: "center" }}>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {progress.by_chapter.map(ch => (
-            <tr key={ch.chapter} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "10px" }}>Chapter {ch.chapter}</td>
-              <td style={{ padding: "10px", textAlign: "center" }}>{ch.submitted} / {(progress.total_questions / 12)}</td>
-              <td style={{ padding: "10px", textAlign: "center" }}>{ch.correct}</td>
-              <td style={{ padding: "10px", textAlign: "center" }}>{ch.score} / {ch.possible}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
