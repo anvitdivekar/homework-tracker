@@ -10,9 +10,18 @@ export interface Question {
   chapter: number;
   title: string;
   prompt: string;
-  correct_answer: string;
-  explanation: string | null;
+  correct_answer?: string;
+  explanation?: string | null;
   created_at: string;
+  type?: "text" | "multiple_choice" | "fill_blank" | "image";
+  options?: any[] | null;
+  due_at?: string | null;
+  points?: number;
+  max_attempts?: number | null;
+  time_limit_sec?: number | null;
+  difficulty?: "easy" | "medium" | "hard" | null;
+  tags?: string[] | null;
+  order_index?: number;
 }
 
 export interface Submission {
@@ -21,4 +30,12 @@ export interface Submission {
   question_id: string;
   answer: string;
   submitted_at: string;
+  is_correct?: boolean | null;
+  score?: number | null;
+  attempt_count?: number;
+  image_url?: string | null;
+  graded_at?: string | null;
+  grader_note?: string | null;
+  session_started_at?: string | null;
+  flagged?: boolean;
 }

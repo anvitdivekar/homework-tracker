@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { sendNewQuestionEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const { chapter, title, prompt, correct_answer, explanation, type, options, due_at, points } = await req.json();
 
-    const supabase = await createServerClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -58,7 +58,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const { id, title, prompt, correct_answer, explanation, type, options, due_at, points } = await req.json();
 
-    const supabase = await createServerClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -105,7 +105,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing question id" }, { status: 400 });
     }
 
-    const supabase = await createServerClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

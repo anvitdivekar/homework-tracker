@@ -1,9 +1,15 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@homework-tracker.com";
 
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
 export async function sendNewQuestionEmail(studentEmails: string[], questionTitle: string, chapter: number) {
+  const resend = getResend();
+  if (!resend) return;
   try {
     await Promise.all(
       studentEmails.map(email =>
@@ -21,6 +27,8 @@ export async function sendNewQuestionEmail(studentEmails: string[], questionTitl
 }
 
 export async function sendSubmissionEmail(taEmail: string, studentEmail: string, questionTitle: string) {
+  const resend = getResend();
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -34,6 +42,8 @@ export async function sendSubmissionEmail(taEmail: string, studentEmail: string,
 }
 
 export async function sendGradeEmail(studentEmail: string, questionTitle: string, score: number, maxScore: number, note?: string) {
+  const resend = getResend();
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: FROM_EMAIL,

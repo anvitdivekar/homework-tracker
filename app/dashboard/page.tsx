@@ -59,7 +59,7 @@ export default function Dashboard() {
     else {
       const role = authUser.email === process.env.NEXT_PUBLIC_TA_EMAIL ? "ta" : "student";
       await supabase.from("users").insert([{ id: authUser.id, email: authUser.email, role }]);
-      setUser({ id: authUser.id, email: authUser.email, name: null, role });
+      setUser({ id: authUser.id, email: authUser.email ?? "", name: null, role });
     }
 
     loadQuestions();
@@ -98,7 +98,7 @@ export default function Dashboard() {
     if (!selectedQuestion || !studentAnswer) return;
 
     const sub = submissions.get(selectedQuestion.id);
-    if (selectedQuestion.max_attempts && sub && sub.attempt_count >= selectedQuestion.max_attempts) {
+    if (selectedQuestion.max_attempts && sub && (sub.attempt_count ?? 0) >= selectedQuestion.max_attempts) {
       alert(`Max attempts (${selectedQuestion.max_attempts}) reached`);
       return;
     }
@@ -283,7 +283,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : selectedQuestion.type === "image" ? (
-                  <input type="file" accept="image/*" onChange={(e) => setStudentAnswer(e.target.files?.[0]?.name || "")} style={{ display: "block", marginBottom: "10px" }} />
+                  <input type="file" accept="image/*" onChange={(e) => setStudentAnswer((e.target.files?.[0]?.name) ?? "")} style={{ display: "block", marginBottom: "10px" }} />
                 ) : null}
                 <button onClick={submitAnswer} disabled={submitting || !studentAnswer} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px", opacity: submitting || !studentAnswer ? 0.6 : 1 }}>
                   {submitting ? "Submitting..." : "Submit"}
