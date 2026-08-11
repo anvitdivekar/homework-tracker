@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [chapter, setChapter] = useState(1);
   const [type, setType] = useState("text");
   const [options, setOptions] = useState("");
+  const [difficulty, setDifficulty] = useState("medium");
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [studentAnswer, setStudentAnswer] = useState("");
   const [feedback, setFeedback] = useState<{ is_correct: boolean | null; score: number | null; explanation: string | null } | null>(null);
@@ -82,13 +83,14 @@ export default function Dashboard() {
     await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapter, title, prompt, correct_answer: answer, type, options: parsed_options }),
+      body: JSON.stringify({ chapter, title, prompt, correct_answer: answer, type, options: parsed_options, difficulty }),
     });
     setTitle("");
     setPrompt("");
     setAnswer("");
     setType("text");
     setOptions("");
+    setDifficulty("medium");
     loadQuestions();
   };
 
@@ -193,6 +195,11 @@ export default function Dashboard() {
           <select value={chapter} onChange={(e) => setChapter(parseInt(e.target.value))} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
             {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Chapter {i + 1}</option>)}
           </select>
+          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
           <button onClick={createQuestion} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px" }}>
             Create
           </button>
@@ -219,6 +226,7 @@ export default function Dashboard() {
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <div>
                       <strong>[Ch {q.chapter}] {q.title}</strong>
+                      {q.difficulty && <span style={{ marginLeft: "10px", fontSize: "12px", padding: "2px 6px", borderRadius: "3px", backgroundColor: q.difficulty === "easy" ? "#c8e6c9" : q.difficulty === "hard" ? "#ffcdd2" : "#fff9c4" }}>{q.difficulty}</span>}
                       <p>{q.prompt}</p>
                       {q.due_at && <small style={{ color: new Date() > new Date(q.due_at) ? "#d32f2f" : "#666" }}>Due: {new Date(q.due_at).toLocaleDateString()}</small>}
                       {q.points && <small style={{ marginLeft: "10px" }}>({q.points} pts)</small>}
