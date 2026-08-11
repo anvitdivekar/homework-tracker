@@ -2,19 +2,45 @@
 
 A full-stack web application for managing accounting homework. Teaching assistants post text questions organized by chapter; students submit answers and see instant feedback with correct answers and explanations.
 
-**Tech Stack:** Next.js 16 • React 19 • Supabase • TypeScript • Tailwind CSS
+**Tech Stack:** Next.js 16 • React 19 • Supabase • TypeScript • CSS Custom Properties
+
+**Design:** Playfair Display • Inter • JetBrains Mono • Navy/Gold color palette • 150ms animations
 
 ---
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Local Setup](#local-setup)
-3. [Running Locally](#running-locally)
-4. [Testing](#testing)
-5. [Deployment to Vercel](#deployment-to-vercel)
-6. [Troubleshooting](#troubleshooting)
-7. [Features & Architecture](#features--architecture)
+1. [Design](#design)
+2. [Prerequisites](#prerequisites)
+3. [Local Setup](#local-setup)
+4. [Running Locally](#running-locally)
+5. [Testing](#testing)
+6. [Deployment to Vercel](#deployment-to-vercel)
+7. [Troubleshooting](#troubleshooting)
+8. [Features & Architecture](#features--architecture)
+
+---
+
+## Design
+
+The app features a modern, polished academic aesthetic with careful attention to typography and interaction.
+
+### Visual Identity
+- **Color Palette:** Navy (#1a2e4a), Gold (#c9a227), Cream (#faf8f3), Surface (white)
+- **Headings:** Playfair Display (serif) — elegant, professional
+- **Body & UI:** Inter — clean, readable, accessible
+- **Code & Entries:** JetBrains Mono — monospace for accounting journal entries
+- **Shadows & Depth:** Subtle elevation on hover, 150ms smooth transitions
+- **Animations:** Card lift on hover, 200ms modal fade-in, no bounces
+
+### Pages
+- **Login:** Centered card with HW monogram, grid background texture
+- **Dashboard:** Sticky nav header, chapter filter tabs, question cards with left accent bars
+- **Progress:** Summary stat cards, chapter breakdown with progress bars
+- **Analytics:** KPI overview, performance tables with success rate visualizations
+
+### Implementation
+Zero new dependencies—all styling via `app/globals.css` with CSS custom properties. Responsive design works on mobile/tablet/desktop.
 
 ---
 
