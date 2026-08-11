@@ -13,16 +13,38 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
   const [chapter, setChapter] = useState(1);
+  const [type, setType] = useState("text");
+  const [options, setOptions] = useState("");
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [studentAnswer, setStudentAnswer] = useState("");
   const [feedback, setFeedback] = useState<{ is_correct: boolean | null; score: number | null; explanation: string | null } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (!selectedQuestion || !selectedQuestion.time_limit_sec) return;
+
+    setTimeRemaining(selectedQuestion.time_limit_sec);
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          setSelectedQuestion(null);
+          alert("Time limit reached!");
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [selectedQuestion]);
 
   const loadUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -56,15 +78,29 @@ export default function Dashboard() {
 
   const createQuestion = async () => {
     if (!title || !prompt || !answer) return;
-    await supabase.from("questions").insert([{ chapter, title, prompt, correct_answer: answer }]);
+    const parsed_options = type === "multiple_choice" ? options.split("\n").filter(o => o.trim()) : null;
+    await fetch("/api/questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chapter, title, prompt, correct_answer: answer, type, options: parsed_options }),
+    });
     setTitle("");
     setPrompt("");
     setAnswer("");
+    setType("text");
+    setOptions("");
     loadQuestions();
   };
 
   const submitAnswer = async () => {
     if (!selectedQuestion || !studentAnswer) return;
+
+    const sub = submissions.get(selectedQuestion.id);
+    if (selectedQuestion.max_attempts && sub && sub.attempt_count >= selectedQuestion.max_attempts) {
+      alert(`Max attempts (${selectedQuestion.max_attempts}) reached`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/submit", {
@@ -144,6 +180,15 @@ export default function Dashboard() {
           <h2 style={{ fontFamily: "serif", color: "#1e3a5f" }}>Create Question</h2>
           <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }} />
           <textarea placeholder="Prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px", minHeight: "100px" }} />
+          <select value={type} onChange={(e) => setType(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
+            <option value="text">Text Answer</option>
+            <option value="multiple_choice">Multiple Choice</option>
+            <option value="fill_blank">Fill in the Blank</option>
+            <option value="image">Image Upload</option>
+          </select>
+          {type === "multiple_choice" && (
+            <textarea placeholder="Options (one per line)" value={options} onChange={(e) => setOptions(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px", minHeight: "80px" }} />
+          )}
           <input placeholder="Correct Answer" value={answer} onChange={(e) => setAnswer(e.target.value)} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }} />
           <select value={chapter} onChange={(e) => setChapter(parseInt(e.target.value))} style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}>
             {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Chapter {i + 1}</option>)}
@@ -202,12 +247,37 @@ export default function Dashboard() {
       {selectedQuestion && !user.role.startsWith("ta") && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
           <div style={{ backgroundColor: "white", padding: "20px", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
-            <h3 style={{ fontFamily: "serif" }}>{selectedQuestion.title}</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
+              <h3 style={{ fontFamily: "serif", margin: "0" }}>{selectedQuestion.title}</h3>
+              {selectedQuestion.time_limit_sec && timeRemaining !== null && (
+                <div style={{ color: timeRemaining < 10 ? "#d32f2f" : "#666", fontSize: "14px", fontWeight: "bold" }}>
+                  ⏱ {timeRemaining}s
+                </div>
+              )}
+            </div>
             <p>{selectedQuestion.prompt}</p>
+            {selectedQuestion.max_attempts && submissions.has(selectedQuestion.id) && (
+              <p style={{ fontSize: "12px", color: "#666", marginBottom: "10px" }}>
+                Attempts: {submissions.get(selectedQuestion.id)?.attempt_count || 1} / {selectedQuestion.max_attempts}
+              </p>
+            )}
             {!feedback ? (
               <>
-                <textarea value={studentAnswer} onChange={(e) => setStudentAnswer(e.target.value)} placeholder="Your answer" style={{ width: "100%", minHeight: "100px", padding: "8px", marginBottom: "10px" }} />
-                <button onClick={submitAnswer} disabled={submitting} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px", opacity: submitting ? 0.6 : 1 }}>
+                {selectedQuestion.type === "text" || selectedQuestion.type === "fill_blank" ? (
+                  <textarea value={studentAnswer} onChange={(e) => setStudentAnswer(e.target.value)} placeholder="Your answer" style={{ width: "100%", minHeight: "100px", padding: "8px", marginBottom: "10px" }} />
+                ) : selectedQuestion.type === "multiple_choice" && selectedQuestion.options ? (
+                  <div style={{ marginBottom: "10px" }}>
+                    {(selectedQuestion.options as any[]).map((opt, idx) => (
+                      <label key={idx} style={{ display: "block", marginBottom: "8px" }}>
+                        <input type="radio" name="mc" value={opt} checked={studentAnswer === opt} onChange={(e) => setStudentAnswer(e.target.value)} style={{ marginRight: "8px" }} />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                ) : selectedQuestion.type === "image" ? (
+                  <input type="file" accept="image/*" onChange={(e) => setStudentAnswer(e.target.files?.[0]?.name || "")} style={{ display: "block", marginBottom: "10px" }} />
+                ) : null}
+                <button onClick={submitAnswer} disabled={submitting || !studentAnswer} style={{ padding: "10px 20px", backgroundColor: "#1e3a5f", color: "white", border: "none", cursor: "pointer", borderRadius: "4px", marginRight: "10px", opacity: submitting || !studentAnswer ? 0.6 : 1 }}>
                   {submitting ? "Submitting..." : "Submit"}
                 </button>
               </>

@@ -44,16 +44,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Grade the answer
-    let is_correct = false;
-    let score = 0;
+    let is_correct: boolean | null = false;
+    let score: number | null = 0;
 
-    if (question.type === "text") {
-      is_correct = answer.trim().toLowerCase() === question.correct_answer.trim().toLowerCase();
-      score = is_correct ? (question.points || 1) : 0;
-    } else if (question.type === "fill_blank") {
+    if (question.type === "text" || question.type === "fill_blank") {
       is_correct = answer.trim().toLowerCase() === question.correct_answer.trim().toLowerCase();
       score = is_correct ? (question.points || 1) : 0;
     } else if (question.type === "multiple_choice") {
+      // correct_answer is the option value/index
       is_correct = answer === question.correct_answer;
       score = is_correct ? (question.points || 1) : 0;
     } else if (question.type === "image") {
