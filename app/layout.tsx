@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Homework Tracker",
@@ -17,13 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="app-shell">
           {children}
         </div>
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js').catch(() => {});
-            }
-          `
-        }} />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
