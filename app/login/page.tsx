@@ -1,14 +1,27 @@
 "use client";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase-client";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const supabase = createClient();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   return (
@@ -38,31 +51,66 @@ export default function LoginPage() {
             marginBottom: "8px",
             color: "var(--navy)",
           }}>Accounting Homework</h1>
-          <p style={{
-            color: "var(--text-muted)",
-            fontSize: "14px",
-            margin: "0",
-          }}>Sign in to access your assignments</p>
+          <p style={{ color: "var(--text-muted)", fontSize: "14px", margin: "0" }}>
+            Sign in to access your assignments
+          </p>
         </div>
 
-        <button
-          onClick={handleLogin}
-          className="btn-primary"
-          style={{
-            width: "100%",
-            marginBottom: "16px",
-          }}
-        >
-          Sign in with Google
-        </button>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: "16px" }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "14px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: "20px" }}>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "14px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          {error && (
+            <p style={{ color: "red", fontSize: "13px", marginBottom: "12px" }}>{error}</p>
+          )}
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+            style={{ width: "100%" }}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
 
         <p style={{
           fontSize: "12px",
           color: "var(--text-muted)",
           textAlign: "center",
-          margin: "0",
+          margin: "16px 0 0",
         }}>
-          Instructor access only. Use your school email to sign in.
+          Instructor access only.
         </p>
       </div>
     </div>
