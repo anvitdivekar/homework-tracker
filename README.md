@@ -126,15 +126,25 @@ CREATE INDEX (success) — for each index
 
 2. Edit `.env.local` and fill in:
    ```env
+   # Required
    NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
    SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
    NEXT_PUBLIC_TA_EMAIL=yourteacheremail@example.com
+
+   # Optional — only needed if email notifications are enabled
+   RESEND_API_KEY=re_...
+   FROM_EMAIL=noreply@yourdomain.com
+
+   # Optional — only needed if image/file upload questions are enabled
+   NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=homework-images
    ```
 
    - Replace `yourteacheremail@example.com` with the email you'll use to sign in as TA
    - This email will automatically be assigned the `ta` role
    - All other emails will be assigned `student` role
+   - `RESEND_API_KEY` / `FROM_EMAIL` are only needed if you enable email notifications (not in MVP)
+   - `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` is only needed if you enable image questions (not in MVP)
 
 3. **Verify `.env.local` is in `.gitignore`** (it should be — never commit secrets)
 
@@ -244,10 +254,16 @@ npx tsc --noEmit
 1. In Vercel, you'll see **Environment Variables** section
 2. Add these (same values as `.env.local`):
    ```
+   # Required
    NEXT_PUBLIC_SUPABASE_URL = https://xxxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJhbGc...
    SUPABASE_SERVICE_ROLE_KEY = eyJhbGc...
    NEXT_PUBLIC_TA_EMAIL = yourteacheremail@example.com
+
+   # Optional
+   RESEND_API_KEY = re_...
+   FROM_EMAIL = noreply@yourdomain.com
+   NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET = homework-images
    ```
 
 3. Click **Deploy**
